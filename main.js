@@ -240,12 +240,17 @@ if (senderName) {
   personalization += ` The feedback is from "${senderName}".`;
 }
 
-  let prompt = `Articulate the following customer feedback. Use clear, Do not turn it into a company reply. Write from the perspective of the feedback giver, using their voice.${personalization}`;
-  if (additional) prompt += ` ${additional}`;
-  if (originalSubject) {
-    prompt += `\nThe feedback subject is "${originalSubject}". Keep the subject unchanged.`;
-  }
-  prompt += `\n\nOriginal feedback:\n${originalFeedback}`;
+  let prompt = `Articulate the following customer feedback. 
+CRITICAL RULES:
+1. Write strictly from the perspective of the feedback giver (use "I").
+2. Do not turn it into a company reply.
+3. DO NOT include any conversational filler, introductions, or explanations (e.g., do not say "Here is the revised feedback" or "Here's my take"). Output ONLY the articulated feedback.${personalization}`;
+
+if (additional) prompt += `\nAdditional instructions: ${additional}`;
+if (originalSubject) {
+  prompt += `\nThe feedback subject is "${originalSubject}". Keep the subject unchanged.`;
+}
+prompt += `\n\nOriginal feedback:\n${originalFeedback}`;
 
   try {
     const response = await axios.post(API_URL, { message: prompt }, {
