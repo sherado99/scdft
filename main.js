@@ -66,9 +66,7 @@ async function generatePDF(recipientName, improvedFeedback, auditHash) {
 async function saveFileToKVS(filename, buffer, contentType) {
   const store = await Actor.openKeyValueStore();
   await store.setValue(filename, buffer, { contentType });
-  const runId = process.env.APIFY_RUN_ID || 'default';
-  const baseUrl = `https://api.apify.com/v2/key-value-stores/${store.id}/records/${filename}?disableRedirect=true`;
-  return baseUrl;
+  return `https://api.apify.com/v2/key-value-stores/${store.id}/records/${filename}?disableRedirect=true`;
 }
 
 function removeSubjectFromBody(body, subject) {
@@ -223,6 +221,8 @@ async function processFeedback(item, index) {
       error: 'Missing originalFeedback field',
       timestamp: new Date().toISOString(),
       auditHash: '',
+      download_docx: '',
+      download_pdf: '',
     };
   }
 
@@ -232,13 +232,13 @@ async function processFeedback(item, index) {
   const senderName = item.senderName || '';
   const recipientEmail = item.recipientEmail || '';
 
- let personalization = '';
-if (recipientName) {
-  personalization += ` The feedback concerns "${recipientName}".`;
-}
-if (senderName) {
-  personalization += ` The feedback is from "${senderName}".`;
-}
+  let personalization = '';
+  if (recipientName) {
+    personalization += ` The feedback concerns "${recipientName}".`;
+  }
+  if (senderName) {
+    personalization += ` The feedback is from "${senderName}".`;
+  }
 
   let prompt = `Articulate the following customer feedback. 
 CRITICAL RULES:
@@ -246,11 +246,11 @@ CRITICAL RULES:
 2. Do not turn it into a company reply.
 3. DO NOT include any conversational filler, introductions, or explanations (e.g., do not say "Here is the revised feedback" or "Here's my take"). Output ONLY the articulated feedback.${personalization}`;
 
-if (additional) prompt += `\nAdditional instructions: ${additional}`;
-if (originalSubject) {
-  prompt += `\nThe feedback subject is "${originalSubject}". Keep the subject unchanged.`;
-}
-prompt += `\n\nOriginal feedback:\n${originalFeedback}`;
+  if (additional) prompt += `\nAdditional instructions: ${additional}`;
+  if (originalSubject) {
+    prompt += `\nThe feedback subject is "${originalSubject}". Keep the subject unchanged.`;
+  }
+  prompt += `\n\nOriginal feedback:\n${originalFeedback}`;
 
   try {
     const response = await axios.post(API_URL, { message: prompt }, {
@@ -265,7 +265,6 @@ prompt += `\n\nOriginal feedback:\n${originalFeedback}`;
     const timestamp = new Date().toISOString();
     const auditHash = calculateHash(originalFeedback, improvedFeedback, timestamp);
 
-    // ---- MULTI-FORMAT FILE GENERATION ----
     const docxBuffer = await generateDOCX(recipientName, improvedFeedback, auditHash);
     const pdfBuffer = await generatePDF(recipientName, improvedFeedback, auditHash);
 
@@ -296,6 +295,8 @@ prompt += `\n\nOriginal feedback:\n${originalFeedback}`;
       error: err.message,
       timestamp: new Date().toISOString(),
       auditHash: '',
+      download_docx: '',
+      download_pdf: '',
       ...(originalSubject && { originalSubject }),
       ...(recipientName && { recipientName }),
       ...(senderName && { senderName }),
